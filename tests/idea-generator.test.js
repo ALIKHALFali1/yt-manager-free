@@ -14,8 +14,10 @@ test('إنشاء فكرة قصة يحتوي على البيانات الأساس
   assert.ok(idea);
   assert.equal(typeof idea.title, 'string');
   assert.ok(idea.title.length > 0);
+
   assert.equal(typeof idea.hook, 'string');
   assert.ok(idea.hook.length > 0);
+
   assert.ok(Array.isArray(idea.sources));
   assert.ok(Array.isArray(idea.verificationChecklist));
 });

@@ -1,42 +1,95 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+# yt-manager-free
 
-import { createStore } from '../src/store.js';
-import { generateStoryIdea } from '../src/idea-generator.js';
+نظام مجاني لإدارة محتوى YouTube Shorts وشرح القصص والمعلومات بشكل منظم وآمن.
 
-test('generateStoryIdea creates a rich Arabic short-form idea', () => {
-  const idea = generateStoryIdea({
-    topic: 'قصص قصيرة عن التكنولوجيا',
-    audience: 'شباب 18-35',
-    angle: 'شرح عملي ومفيد'
-  });
+## نظرة عامة
 
-  assert.equal(idea.language, 'ar');
-  assert.match(idea.title, /قصص قصيرة عن التكنولوجيا/i);
-  assert.ok(idea.hook.includes('15 ثانية'));
-  assert.ok(Array.isArray(idea.sources));
-  assert.ok(idea.sources.length >= 3);
-  assert.ok(Array.isArray(idea.verificationChecklist));
-  assert.ok(idea.verificationChecklist.length >= 4);
-});
+هذا المشروع يركز على:
 
-test('store can persist library and ideas in a temporary data directory', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yt-manager-free-'));
-  const store = createStore(tempDir);
+- توليد أفكار قصيرة عربية للقصص والمعلومات
+- إعداد سيناريوهات فيديو عمودية 1080×1920
+- إدارة السكريبتات والملفات محليًا داخل `.data`
+- إنتاج فيديو محلي باستخدام FFmpeg دون نشر تلقائي إلى YouTube
+- التشغيل داخل GitHub Actions بشكل مجدول وغير مستمر
 
-  store.saveLibrary([{ id: 1, url: 'https://example.com/a' }]);
-  store.saveIdeas([{ id: 'idea-1', title: 'Idea 1', status: 'draft' }]);
+## المتطلبات
 
-  const library = store.readLibrary();
-  const ideas = store.readIdeas();
+- Node.js 18+
+- FFmpeg (اختياري للإنتاج، لكنه ضروري عند تشغيل الفيديوهات)
 
-  assert.equal(library.length, 1);
-  assert.equal(ideas.length, 1);
-  assert.equal(ideas[0].title, 'Idea 1');
+## التثبيت
 
-  fs.rmSync(tempDir, { recursive: true, force: true });
-});
+```bash
+npm install
+```
 
+## الأوامر الأساسية
+
+```bash
+node src/index.js add "https://www.youtube.com/watch?v=example"
+node src/index.js list
+node src/index.js remove 1
+node src/index.js clear
+node src/index.js help
+```
+
+## توليد الأفكار والسكريبتات
+
+```bash
+node src/index.js idea generate --topic "قصص قصيرة عن التقنية" --audience "شباب 18-35" --angle "شرح عملي ومفيد"
+node src/index.js idea list
+node src/index.js script generate --topic "التقنية في الحياة اليومية" --audience "شباب 18-35" --angle "شرح سريع ومفيد"
+node src/index.js script list
+```
+
+## إنتاج فيديو محلي
+
+```bash
+node src/index.js video render --script-id "script-..."
+node src/index.js video status
+node src/index.js video mark-failed "video-..." "تم اكتشاف خطأ في النص أو الملف"
+```
+
+## التشغيل داخل GitHub Actions
+
+يوجد ملف سير عمل مجدول جاهز في:
+
+- `.github/workflows/shorts-scheduler.yml`
+
+يتم تشغيله:
+
+- يدوياً عبر `workflow_dispatch`
+- أو مجدولًا يوميًا عبر cron
+
+لا يتم رفع الفيديوهات إلى YouTube خلال هذه المرحلة، فقط التشغيل المحلي أو داخل CI مع حفظ Artifact في GitHub.
+
+## ملاحظات مهمة
+
+- لا تُخزن المفاتيح أو الرموز في المستودع.
+- لا يتم النشر التلقائي على YouTube في هذه المرحلة.
+- يحتاج أي رفع فعلي إلى OAuth آمن عبر GitHub Secrets.
+- إذا لم يتوفر FFmpeg، يتم تسجيل الحالة كـ "skipped" بدلًا من الفشل المفاجئ.
+
+## بنية المشروع
+
+```text
+src/
+  index.js
+  idea-generator.js
+  script-manager.js
+  store.js
+  video-engine.js
+.data/
+  library.json
+  ideas.json
+  scripts.json
+  videos.json
+  output/
+```
+
+## حدود المشروع
+
+- لا يوجد نشر تلقائي إلى YouTube في هذه المرحلة
+- لا يعتمد على خدمات مدفوعة
+- يعتمد على ملفات محلية فقط، مع دعم اختياري للملفات الموجودة في النظام
+- كل خطوة تحتاج إلى مراجعة بشرية قبل النشر النهائي

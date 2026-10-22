@@ -1,6 +1,4 @@
 
-#!/usr/bin/env node
-
 import { createStore } from './store.js';
 import { generateStoryIdea } from './idea-generator.js';
 
@@ -8,215 +6,292 @@ const store = createStore();
 
 function showHelp() {
   console.log(`
-YT Manager Free
+مدير يوتيوب مجاني - YT Manager Free
 
-الأوامر الأساسية:
-  node src/index.js add <youtube-url>
-  node src/index.js list
-  node src/index.js remove <index>
-  node src/index.js clear
+الاستخدام:
   node src/index.js help
-
-أوامر الأفكار والقصص:
-  node src/index.js idea generate --topic "قصة قصيرة عن الذكاء الاصطناعي" --audience "شباب 18-35" --angle "شرح عملي ومفيد"
+  node src/index.js add <رابط يوتيوب> [title="عنوان الفيديو"]
+  node src/index.js list
+  node src/index.js remove <id>
+  node src/index.js clear
+  node src/index.js idea generate [topic="الموضوع"]
   node src/index.js idea list
-  node src/index.js idea show <idea-id>
+  node src/index.js idea show <id>
+
+أمثلة:
+  node src/index.js add "https://www.youtube.com/watch?v=VIDEO_ID" title="فيديو مفيد"
+  node src/index.js list
+  node src/index.js idea generate topic="الذكاء الاصطناعي"
+  node src/index.js idea list
 `);
 }
 
-function addItem(url) {
-  if (
-    !url ||
-    !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(url)
-  ) {
-    console.error('من فضلك أدخل رابط YouTube صالحًا.');
+function parseKeyValueArgs(args) {
+  const result = {};
+
+  for (const arg of args) {
+    const separator = arg.indexOf('=');
+
+    if (separator === -1) continue;
+
+    const key = arg.slice(0, separator).trim();
+    const value = arg.slice(separator + 1).trim();
+
+    if (key) {
+      result[key] = value.replace(/^["']|["']$/g, '');
+    }
+  }
+
+  return result;
+}
+
+function createId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isValidYouTubeUrl(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+
+    if (host === 'youtu.be') {
+      return url.pathname.length > 1;
+    }
+
+    if (
+      host === 'youtube.com' ||
+      host === 'm.youtube.com' ||
+      host === 'music.youtube.com'
+    ) {
+      return (
+        url.pathname === '/watch' && url.searchParams.has('v')
+      ) || (
+        url.pathname.startsWith('/shorts/') &&
+        url.pathname.length > 8
+      ) || (
+        url.pathname.startsWith('/embed/') &&
+        url.pathname.length > 7
+      );
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function addItem(args) {
+  const url = args[0];
+
+  if (!url || !isValidYouTubeUrl(url)) {
+    console.error('خطأ: أدخل رابط يوتيوب صحيحًا.');
+    console.log('مثال: node src/index.js add "https://youtu.be/VIDEO_ID"');
     process.exitCode = 1;
     return;
   }
 
+  const options = parseKeyValueArgs(args.slice(1));
   const items = store.readLibrary();
 
-  if (items.some((item) => item.url === url)) {
+  const duplicate = items.find((item) => item.url === url);
+
+  if (duplicate) {
     console.log('هذا الرابط موجود بالفعل في المكتبة.');
+    console.log(`المعرّف: ${duplicate.id}`);
     return;
   }
 
   const item = {
-    id: Date.now(),
+    id: createId(),
     url,
-    addedAt: new Date().toISOString()
+    title: options.title || 'فيديو بدون عنوان',
+    notes: options.notes || '',
+    createdAt: new Date().toISOString()
   };
 
   items.push(item);
   store.saveLibrary(items);
 
-  console.log(`تمت إضافة الرابط بنجاح: ${url}`);
+  console.log('تمت إضافة الفيديو بنجاح.');
+  console.log(`العنوان: ${item.title}`);
+  console.log(`المعرّف: ${item.id}`);
 }
 
 function listItems() {
   const items = store.readLibrary();
 
   if (!items.length) {
-    console.log('المكتبة فارغة حاليًا.');
+    console.log('المكتبة فارغة. أضف رابط يوتيوب باستخدام الأمر add.');
     return;
   }
 
-  items.forEach((item, index) => {
-    console.log(`${index + 1}. ${item.url}`);
-    console.log(`   تاريخ الإضافة: ${item.addedAt}`);
-  });
+  console.log('\nمكتبة فيديوهات يوتيوب:\n');
+
+  for (const item of items) {
+    console.log(`العنوان: ${item.title}`);
+    console.log(`الرابط: ${item.url}`);
+    console.log(`المعرّف: ${item.id}`);
+
+    if (item.notes) {
+      console.log(`ملاحظات: ${item.notes}`);
+    }
+
+    console.log('-------------------------');
+  }
+
+  console.log(`إجمالي الفيديوهات: ${items.length}`);
 }
 
-function removeItem(indexValue) {
-  const index = Number(indexValue) - 1;
-  const items = store.readLibrary();
+function removeItem(args) {
+  const id = args[0];
 
-  if (
-    !Number.isInteger(index) ||
-    index < 0 ||
-    index >= items.length
-  ) {
-    console.error('رقم العنصر غير صحيح.');
+  if (!id) {
+    console.error('يرجى تحديد معرّف الفيديو المراد حذفه.');
     process.exitCode = 1;
     return;
   }
 
-  const removed = items.splice(index, 1)[0];
+  const items = store.readLibrary();
+  const updatedItems = items.filter((item) => item.id !== id);
 
-  store.saveLibrary(items);
-  console.log(`تم حذف الرابط: ${removed.url}`);
+  if (updatedItems.length === items.length) {
+    console.log('لم يتم العثور على فيديو بهذا المعرّف.');
+    return;
+  }
+
+  store.saveLibrary(updatedItems);
+  console.log('تم حذف الفيديو بنجاح.');
 }
 
 function clearLibrary() {
-  store.saveLibrary([]);
-  console.log('تم مسح مكتبة الروابط.');
-}
+  const items = store.readLibrary();
 
-function parseKeyValueArgs(args) {
-  const result = {};
-
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-
-    if (!arg.startsWith('--')) {
-      continue;
-    }
-
-    const equalIndex = arg.indexOf('=');
-    let key;
-    let value;
-
-    if (equalIndex !== -1) {
-      key = arg.slice(2, equalIndex);
-      value = arg.slice(equalIndex + 1);
-    } else {
-      key = arg.slice(2);
-      value = args[i + 1] ?? '';
-
-      if (value && !value.startsWith('--')) {
-        i += 1;
-      } else {
-        value = '';
-      }
-    }
-
-    result[key] = value;
+  if (!items.length) {
+    console.log('المكتبة فارغة بالفعل.');
+    return;
   }
 
-  return result;
+  store.saveLibrary([]);
+  console.log(`تم حذف ${items.length} فيديو من المكتبة.`);
 }
 
 function handleIdeaGenerate(args) {
-  const opts = parseKeyValueArgs(args);
+  const options = parseKeyValueArgs(args);
+
+  const topic = options.topic || 'معلومات عامة';
+  const audience = options.audience || 'الجمهور العام';
+  const angle = options.angle || 'محتوى مفيد وجذاب';
+  const language = options.language || 'ar';
 
   const idea = generateStoryIdea({
-    topic: opts.topic || 'قصص ومعلومات عربية',
-    audience: opts.audience || 'شباب 18-35',
-    angle: opts.angle || 'تفسير سريع ومفيد',
-    language: opts.language || 'ar'
+    topic,
+    audience,
+    angle,
+    language
   });
 
   const ideas = store.readIdeas();
-
-  ideas.unshift(idea);
+  ideas.push(idea);
   store.saveIdeas(ideas);
 
-  console.log(JSON.stringify({
-    id: idea.id,
-    title: idea.title,
-    slug: idea.slug,
-    topic: idea.topic,
-    audience: idea.audience,
-    angle: idea.angle,
-    hook: idea.hook,
-    scriptOutline: idea.scriptOutline,
-    sources: idea.sources,
-    verificationChecklist: idea.verificationChecklist,
-    status: idea.status,
-    createdAt: idea.createdAt
-  }, null, 2));
+  console.log('\nتم إنشاء فكرة جديدة بنجاح!\n');
+  console.log(`العنوان: ${idea.title}`);
+  console.log(`الموضوع: ${idea.topic}`);
+  console.log(`الخطاف: ${idea.hook}`);
+  console.log(`المعرّف: ${idea.id}`);
+  console.log(`الحالة: ${idea.status}`);
 
-  console.log('\nتم إنشاء الفكرة وحفظها بنجاح.');
+  if (Array.isArray(idea.scriptOutline) && idea.scriptOutline.length) {
+    console.log('\nمخطط السكريبت:');
+
+    for (const step of idea.scriptOutline) {
+      if (typeof step === 'string') {
+        console.log(`- ${step}`);
+      } else {
+        console.log(`- ${step.title || step.heading || 'الخطوة'}`);
+
+        if (step.content) {
+          console.log(`  ${step.content}`);
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(idea.sources) && idea.sources.length) {
+    console.log('\nمصادر مقترحة للتحقق:');
+
+    for (const source of idea.sources) {
+      if (typeof source === 'string') {
+        console.log(`- ${source}`);
+      } else {
+        console.log(`- ${source.name || source.title || 'مصدر مقترح'}`);
+
+        if (source.note || source.notes) {
+          console.log(`  ${source.note || source.notes}`);
+        }
+      }
+    }
+  }
+
+  console.log('\nراجع المعلومات والمصادر قبل نشر الفيديو.');
 }
 
 function handleIdeaList() {
   const ideas = store.readIdeas();
 
   if (!ideas.length) {
-    console.log('لا توجد أفكار محفوظة حاليًا.');
+    console.log('لا توجد أفكار محفوظة حتى الآن.');
     return;
   }
 
-  ideas.forEach((idea, index) => {
-    console.log(`${index + 1}. [${idea.status}] ${idea.title}`);
-    console.log(`   المعرف: ${idea.id}`);
-  });
+  console.log('\nالأفكار المحفوظة:\n');
+
+  for (const idea of ideas) {
+    console.log(`العنوان: ${idea.title}`);
+    console.log(`الموضوع: ${idea.topic || 'غير محدد'}`);
+    console.log(`المعرّف: ${idea.id}`);
+    console.log(`الحالة: ${idea.status || 'مسودة'}`);
+    console.log('-------------------------');
+  }
+
+  console.log(`إجمالي الأفكار: ${ideas.length}`);
 }
 
-function handleIdeaShow(ideaId) {
-  if (!ideaId) {
-    console.error('من فضلك أدخل معرف الفكرة.');
+function handleIdeaShow(args) {
+  const id = args[0];
+
+  if (!id) {
+    console.error('يرجى تحديد معرّف الفكرة.');
     process.exitCode = 1;
     return;
   }
 
-  const ideas = store.readIdeas();
-  const idea = ideas.find((item) => item.id === ideaId);
+  const idea = store.readIdeas().find((item) => item.id === id);
 
   if (!idea) {
-    console.error('لم يتم العثور على فكرة بهذا المعرف.');
-    process.exitCode = 1;
+    console.log('لم يتم العثور على الفكرة المطلوبة.');
     return;
   }
 
+  console.log('\nتفاصيل الفكرة\n');
   console.log(JSON.stringify(idea, null, 2));
 }
 
-function handleIdeaCommand(subcommand, args) {
-  switch (subcommand) {
-    case 'generate':
-      handleIdeaGenerate(args);
-      break;
+function main() {
+  store.ensureStore();
 
-    case 'list':
-      handleIdeaList();
-      break;
+  const [command, ...args] = process.argv.slice(2);
 
-    case 'show':
-      handleIdeaShow(args[0]);
-      break;
-
-    default:
-      showHelp();
-  }
-}
-
-const [command, subcommand, ...args] = process.argv.slice(2);
-
-try {
   switch (command) {
+    case 'help':
+    case '--help':
+    case '-h':
+    case undefined:
+      showHelp();
+      break;
+
     case 'add':
-      addItem(subcommand);
+      addItem(args);
       break;
 
     case 'list':
@@ -224,27 +299,55 @@ try {
       break;
 
     case 'remove':
-      removeItem(subcommand);
+      removeItem(args);
       break;
 
     case 'clear':
       clearLibrary();
       break;
 
-    case 'idea':
-    case 'ideas':
-    case 'story':
-      handleIdeaCommand(subcommand, args);
-      break;
+    case 'idea': {
+      const [action, ...ideaArgs] = args;
 
-    case 'help':
-    case '--help':
-    case '-h':
-    default:
-      showHelp();
+      switch (action) {
+        case 'generate':
+          handleIdeaGenerate(ideaArgs);
+          break;
+
+        case 'list':
+          handleIdeaList();
+          break;
+
+        case 'show':
+          handleIdeaShow(ideaArgs);
+          break;
+
+        default:
+          console.log('أمر الأفكار غير معروف.');
+          console.log('الاستخدام: idea generate أو idea list أو idea show <id>');
+          process.exitCode = 1;
+      }
+
       break;
+    }
+
+    default:
+      console.error(`أمر غير معروف: ${command}`);
+      showHelp();
+      process.exitCode = 1;
   }
+}
+
+try {
+  main();
 } catch (error) {
-  console.error('حدث خطأ أثناء تنفيذ الأمر:', error.message);
+  console.error('حدث خطأ أثناء تشغيل البرنامج.');
+
+  if (process.env.DEBUG === '1') {
+    console.error(error);
+  } else {
+    console.error('لإظهار تفاصيل الخطأ، شغّل الأمر مع DEBUG=1.');
+  }
+
   process.exitCode = 1;
 }

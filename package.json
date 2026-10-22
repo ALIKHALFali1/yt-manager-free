@@ -1,0 +1,12 @@
+{
+  "name": "yt-manager-free",
+  "version": "1.0.0",
+  "description": "A lightweight YouTube manager for organizing and tracking YouTube links locally.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test"
+  }
+}

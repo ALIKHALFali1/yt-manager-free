@@ -1,32 +1,42 @@
-# yt-manager-free
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-A lightweight project for managing YouTube links and local media tracking.
+import { createStore } from '../src/store.js';
+import { generateStoryIdea } from '../src/idea-generator.js';
 
-## Overview
+test('generateStoryIdea creates a rich Arabic short-form idea', () => {
+  const idea = generateStoryIdea({
+    topic: 'قصص قصيرة عن التكنولوجيا',
+    audience: 'شباب 18-35',
+    angle: 'شرح عملي ومفيد'
+  });
 
-`yt-manager-free` is a simple command-line project for organizing YouTube content you want to keep track of locally.
+  assert.equal(idea.language, 'ar');
+  assert.match(idea.title, /قصص قصيرة عن التكنولوجيا/i);
+  assert.ok(idea.hook.includes('15 ثانية'));
+  assert.ok(Array.isArray(idea.sources));
+  assert.ok(idea.sources.length >= 3);
+  assert.ok(Array.isArray(idea.verificationChecklist));
+  assert.ok(idea.verificationChecklist.length >= 4);
+});
 
-It currently supports:
+test('store can persist library and ideas in a temporary data directory', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yt-manager-free-'));
+  const store = createStore(tempDir);
 
-- adding YouTube URLs to a local library
-- listing saved URLs
-- removing items from the library
-- clearing the entire library
+  store.saveLibrary([{ id: 1, url: 'https://example.com/a' }]);
+  store.saveIdeas([{ id: 'idea-1', title: 'Idea 1', status: 'draft' }]);
 
-## Quick Start
+  const library = store.readLibrary();
+  const ideas = store.readIdeas();
 
-```bash
-npm start -- add "https://www.youtube.com/watch?v=example"
-npm start -- list
-npm start -- remove 1
-npm start -- clear
-```
+  assert.equal(library.length, 1);
+  assert.equal(ideas.length, 1);
+  assert.equal(ideas[0].title, 'Idea 1');
 
-## Project Structure
+  fs.rmSync(tempDir, { recursive: true, force: true });
+});
 
-- `src/index.js` — main CLI entry point
-- `.data/library.json` — local library storage
-
-## Notes
-
-This project is intentionally lightweight and easy to extend. It is a good starting point for adding metadata, searches, and downloads later.

@@ -1,7 +1,7 @@
 {
   "name": "yt-manager-free",
   "version": "1.0.0",
-  "description": "A lightweight YouTube manager for organizing and tracking YouTube links locally.",
+  "description": "A lightweight YouTube manager for organizing and tracking YouTube links locally, with Arabic story idea generation for Shorts and information content.",
   "main": "src/index.js",
   "type": "module",
   "scripts": {

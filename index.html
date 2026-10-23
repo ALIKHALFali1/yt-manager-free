@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -283,6 +282,44 @@
       .stats { grid-template-columns: 1fr; }
       .toolbar { flex-direction: column; }
     }
+
+    .account-panel { margin-bottom: 22px; }
+    .account-grid {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+      gap: 12px;
+    }
+    .account-panel label {
+      display: block;
+      color: #c6cee2;
+      font-size: 13px;
+      margin: 10px 0 5px;
+    }
+    .account-panel .account-message {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+    .account-panel .account-message.error { color: var(--red); }
+    .account-panel .account-message.success { color: var(--cyan); }
+    .account-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .account-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .account-email { color: var(--cyan); overflow-wrap: anywhere; }
+    .cloud-state { font-size: 12px; color: var(--muted); margin-top: 7px; }
+    @media(max-width:600px) {
+      .account-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -316,6 +353,38 @@
       </div>
       <span class="pill">✦ مجاني</span>
     </header>
+
+    <section class="panel account-panel" aria-labelledby="account-heading">
+      <div class="account-status">
+        <div>
+          <h2 id="account-heading" style="margin:0;font-size:18px">حسابك ومزامنة بياناتك</h2>
+          <div class="muted">سجّل الدخول لحفظ أفكارك وروابطك في Firebase والوصول إليها من أجهزتك.</div>
+          <div id="cloud-state" class="cloud-state" role="status">جارٍ تجهيز الاتصال...</div>
+        </div>
+        <div id="signed-in-tools" hidden>
+          <span id="signed-in-email" class="account-email"></span>
+          <button class="small-btn" type="button" onclick="signOutUser()">تسجيل الخروج</button>
+        </div>
+      </div>
+      <div id="auth-form-area">
+        <div class="account-grid">
+          <div>
+            <label for="auth-email">البريد الإلكتروني</label>
+            <input id="auth-email" type="email" autocomplete="email" placeholder="name@example.com">
+          </div>
+          <div>
+            <label for="auth-password">كلمة المرور</label>
+            <input id="auth-password" type="password" autocomplete="current-password" placeholder="6 أحرف على الأقل">
+          </div>
+        </div>
+        <div class="account-actions">
+          <button class="btn primary" type="button" onclick="signInUser()">تسجيل الدخول</button>
+          <button class="btn" type="button" onclick="createAccount()">إنشاء حساب</button>
+          <button class="small-btn" type="button" onclick="resetPassword()">نسيت كلمة المرور؟</button>
+        </div>
+      </div>
+      <p id="auth-message" class="account-message" aria-live="polite"></p>
+    </section>
 
     <section id="dashboard" class="view active">
       <div class="hero">
@@ -388,49 +457,297 @@
     </section>
 
     <footer>
-      YT Manager Free · نسخة أولية للواجهة · بيانات هذه النسخة محفوظة في متصفحك فقط
+      YT Manager Free · بياناتك محفوظة محليًا أو في حسابك عند تسجيل الدخول
     </footer>
   </main>
 </div>
-
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
   const $ = (id) => document.getElementById(id);
 
-  const load = (key) => {
+  // إعدادات تطبيق Firebase الخاص بـ YT Manager Free.
+  const firebaseConfig = {
+    apiKey: "AIzaSyDspy-JSaVrbQYynpov1_CQkN8Ypm9Y8oU",
+    authDomain: "braided-keel-437500-e7.firebaseapp.com",
+    databaseURL: "https://braided-keel-437500-e7-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "braided-keel-437500-e7",
+    storageBucket: "braided-keel-437500-e7.firebasestorage.app",
+    messagingSenderId: "116896506140",
+    appId: "1:116896506140:web:af4d6d7af5d1cfea511ad9",
+    measurementId: "G-QNV9XXV5X8"
+  };
+
+  let firebaseReady = false;
+  let auth = null;
+  let database = null;
+  let currentUser = null;
+  let dataReady = false;
+  let ideas = loadLocal('ytmf_ideas');
+  let videos = loadLocal('ytmf_videos');
+  let cloudSaveTimer = null;
+  let authBusy = false;
+
+  function loadLocal(key) {
     try {
       const value = JSON.parse(localStorage.getItem(key) || '[]');
       return Array.isArray(value) ? value : [];
     } catch {
       return [];
     }
-  };
+  }
 
-  let ideas = load('ytmf_ideas');
-  let videos = load('ytmf_videos');
+  function saveLocal() {
+    try {
+      localStorage.setItem('ytmf_ideas', JSON.stringify(ideas));
+      localStorage.setItem('ytmf_videos', JSON.stringify(videos));
+    } catch (error) {
+      console.warn('تعذر حفظ نسخة محلية من البيانات:', error);
+    }
+  }
 
-  const save = () => {
-    localStorage.setItem('ytmf_ideas', JSON.stringify(ideas));
-    localStorage.setItem('ytmf_videos', JSON.stringify(videos));
+  function setCloudState(message, type = '') {
+    const el = $('cloud-state');
+    if (el) {
+      el.textContent = message;
+      el.style.color = type === 'error'
+        ? 'var(--red)'
+        : type === 'success'
+          ? 'var(--cyan)'
+          : 'var(--muted)';
+    }
+  }
+
+  function setAuthMessage(message, type = '') {
+    const el = $('auth-message');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'account-message' + (type ? ' ' + type : '');
+  }
+
+  function firebaseErrorMessage(error) {
+    const messages = {
+      'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+      'auth/user-not-found': 'لا يوجد حساب بهذا البريد. أنشئ حسابًا جديدًا أولًا.',
+      'auth/wrong-password': 'كلمة المرور غير صحيحة.',
+      'auth/invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+      'auth/email-already-in-use': 'هذا البريد مسجّل بالفعل. جرّب تسجيل الدخول.',
+      'auth/weak-password': 'كلمة المرور ضعيفة؛ استخدم 6 أحرف على الأقل.',
+      'auth/too-many-requests': 'محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.',
+      'auth/network-request-failed': 'تعذر الاتصال بالإنترنت. تحقق من اتصالك وحاول مجددًا.',
+      'auth/operation-not-allowed': 'تسجيل البريد وكلمة المرور غير مفعّل في Firebase Authentication.',
+      'PERMISSION_DENIED': 'قاعدة البيانات رفضت الوصول. تأكد من نشر قواعد الأمان الصحيحة في Firebase.',
+      'database/permission-denied': 'قاعدة البيانات رفضت الوصول. تأكد من قواعد الأمان في Firebase.'
+    };
+    return messages[error?.code] || error?.message || 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+  }
+
+  function setAuthBusy(busy) {
+    authBusy = busy;
+    document.querySelectorAll('.account-actions button').forEach(button => {
+      button.disabled = busy;
+      button.style.opacity = busy ? '.65' : '';
+    });
+  }
+
+  async function signInUser() {
+    if (!firebaseReady || authBusy) return;
+
+    const email = $('auth-email').value.trim();
+    const password = $('auth-password').value;
+
+    if (!email || !password) {
+      return setAuthMessage('اكتب البريد الإلكتروني وكلمة المرور.', 'error');
+    }
+
+    setAuthBusy(true);
+    setAuthMessage('جارٍ تسجيل الدخول...');
+
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      setAuthMessage('تم تسجيل الدخول بنجاح.', 'success');
+    } catch (error) {
+      setAuthMessage(firebaseErrorMessage(error), 'error');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function createAccount() {
+    if (!firebaseReady || authBusy) return;
+
+    const email = $('auth-email').value.trim();
+    const password = $('auth-password').value;
+
+    if (!email || !password) {
+      return setAuthMessage('اكتب البريد الإلكتروني وكلمة المرور أولًا.', 'error');
+    }
+
+    if (password.length < 6) {
+      return setAuthMessage('كلمة المرور يجب ألا تقل عن 6 أحرف.', 'error');
+    }
+
+    setAuthBusy(true);
+    setAuthMessage('جارٍ إنشاء الحساب...');
+
+    try {
+      await auth.createUserWithEmailAndPassword(email, password);
+      setAuthMessage('تم إنشاء الحساب وتسجيل الدخول.', 'success');
+    } catch (error) {
+      setAuthMessage(firebaseErrorMessage(error), 'error');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function resetPassword() {
+    if (!firebaseReady || authBusy) return;
+
+    const email = $('auth-email').value.trim();
+
+    if (!email) {
+      return setAuthMessage('اكتب بريدك الإلكتروني أولًا لاستعادة كلمة المرور.', 'error');
+    }
+
+    setAuthBusy(true);
+    setAuthMessage('جارٍ إرسال رابط استعادة كلمة المرور...');
+
+    try {
+      await auth.sendPasswordResetEmail(email);
+      setAuthMessage(
+        'إذا كان البريد مسجّلًا، فسيصلك رابط استعادة كلمة المرور. راجع صندوق الوارد والرسائل غير المرغوب فيها.',
+        'success'
+      );
+    } catch (error) {
+      setAuthMessage(firebaseErrorMessage(error), 'error');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOutUser() {
+    if (!auth) return;
+
+    try {
+      await auth.signOut();
+      setAuthMessage('تم تسجيل الخروج. ستظل بيانات هذا المتصفح متاحة محليًا.', 'success');
+    } catch (error) {
+      setAuthMessage(firebaseErrorMessage(error), 'error');
+    }
+  }
+
+  function userDataRef() {
+    if (!currentUser || !database) {
+      throw new Error('يجب تسجيل الدخول أولًا.');
+    }
+    return database.ref('users/' + currentUser.uid);
+  }
+
+  async function loadUserData(user) {
+    dataReady = false;
+    setCloudState('جارٍ تحميل بيانات حسابك...');
+
+    try {
+      const snapshot = await database.ref('users/' + user.uid).once('value');
+      const cloud = snapshot.val();
+
+      if (cloud && (Array.isArray(cloud.ideas) || Array.isArray(cloud.videos))) {
+        ideas = Array.isArray(cloud.ideas) ? cloud.ideas : [];
+        videos = Array.isArray(cloud.videos) ? cloud.videos : [];
+      } else {
+        // نقل البيانات المحلية للحساب إذا كانت مساحة الحساب فارغة.
+        const localIdeas = loadLocal('ytmf_ideas');
+        const localVideos = loadLocal('ytmf_videos');
+        const hasLocalData = localIdeas.length > 0 || localVideos.length > 0;
+
+        if (hasLocalData) {
+          ideas = localIdeas;
+          videos = localVideos;
+
+          await userDataRef().set({
+            ideas,
+            videos,
+            updatedAt: new Date().toISOString()
+          });
+
+          setAuthMessage('تم نقل بيانات هذا المتصفح إلى حسابك السحابي.', 'success');
+        } else {
+          ideas = [];
+          videos = [];
+        }
+      }
+
+      saveLocal();
+      dataReady = true;
+      renderAll();
+      setCloudState('متصل — يتم حفظ بياناتك في حساب Firebase.', 'success');
+    } catch (error) {
+      dataReady = false;
+      setCloudState(firebaseErrorMessage(error), 'error');
+      setAuthMessage(
+        'لم نتمكن من تحميل بيانات الحساب. راجع قواعد Realtime Database في Firebase.',
+        'error'
+      );
+    }
+  }
+
+  async function persistCloudData() {
+    if (!currentUser || !dataReady) return;
+
+    try {
+      await userDataRef().set({
+        ideas,
+        videos,
+        updatedAt: new Date().toISOString()
+      });
+
+      setCloudState('تم حفظ التغييرات في حسابك السحابي.', 'success');
+    } catch (error) {
+      setCloudState(firebaseErrorMessage(error), 'error');
+      setAuthMessage(
+        'تم حفظ نسخة محلية، لكن تعذر حفظها في السحابة. راجع اتصالك وقواعد Firebase.',
+        'error'
+      );
+    }
+  }
+
+  function save() {
+    saveLocal();
     renderAll();
-  };
+
+    if (currentUser && dataReady) {
+      clearTimeout(cloudSaveTimer);
+      setCloudState('جارٍ حفظ التغييرات...');
+      cloudSaveTimer = setTimeout(persistCloudData, 250);
+    } else {
+      setCloudState('محفوظ في هذا المتصفح فقط. سجّل الدخول للمزامنة السحابية.');
+    }
+  }
 
   const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;',
-    '"': '&quot;', "'": '&#39;'
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
   })[char]);
 
   function navigate(view) {
     document.querySelectorAll('.view').forEach(el => {
       el.classList.toggle('active', el.id === view);
     });
+
     document.querySelectorAll('.nav').forEach(el => {
       el.classList.toggle('active', el.dataset.view === view);
     });
+
     const titles = {
       dashboard: 'لوحة التحكم',
       ideas: 'أفكار YouTube Shorts',
       library: 'مكتبة الفيديوهات'
     };
+
     $('page-title').textContent = titles[view] || 'YT Manager Free';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -471,8 +788,7 @@
       outline: 'اعرض المشكلة، وضّح سببها، وقدّم خطوات عملية للحل.'
     }
   ];
-
-  function generateIdea() {
+    function generateIdea() {
     const template = topics[Math.floor(Math.random() * topics.length)];
     const idea = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
@@ -489,6 +805,7 @@
   }
 
   function ideaCard(idea) {
+    const safeId = escapeHTML(idea.id);
     return `
       <article class="idea-card">
         <span class="tag">${escapeHTML(idea.topic)}</span>
@@ -497,8 +814,8 @@
         <p><strong>المخطط:</strong> ${escapeHTML(idea.outline)}</p>
         <div class="muted">الحالة: ${escapeHTML(idea.status || 'مسودة')}</div>
         <div class="card-actions">
-          <button class="small-btn" onclick="copyIdea('${idea.id}')">نسخ الفكرة</button>
-          <button class="small-btn danger" onclick="deleteIdea('${idea.id}')">حذف</button>
+          <button class="small-btn" onclick="copyIdea('${safeId}')">نسخ الفكرة</button>
+          <button class="small-btn danger" onclick="deleteIdea('${safeId}')">حذف</button>
         </div>
       </article>`;
   }
@@ -510,6 +827,7 @@
         String(value || '').toLowerCase().includes(query)
       )
     );
+
     $('ideas-list').innerHTML = filtered.length
       ? filtered.map(ideaCard).join('')
       : '<div class="empty">لا توجد أفكار هنا بعد. اضغط «إنشاء فكرة جديدة» للبدء.</div>';
@@ -523,14 +841,16 @@
 
   function deleteIdea(id) {
     if (!confirm('هل تريد حذف هذه الفكرة؟')) return;
-    ideas = ideas.filter(idea => idea.id !== id);
+    ideas = ideas.filter(idea => String(idea.id) !== String(id));
     save();
   }
 
   function copyIdea(id) {
-    const idea = ideas.find(item => item.id === id);
+    const idea = ideas.find(item => String(item.id) === String(id));
     if (!idea) return;
+
     const text = `العنوان: ${idea.title}\nالموضوع: ${idea.topic}\nالخطاف: ${idea.hook}\nالمخطط: ${idea.outline}`;
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text)
         .then(() => alert('تم نسخ الفكرة.'))
@@ -553,6 +873,7 @@
     try {
       const url = new URL(value);
       const host = url.hostname.toLowerCase().replace(/^www\./, '');
+
       return (
         (host === 'youtu.be' && url.pathname.length > 1) ||
         (
@@ -578,10 +899,12 @@
       alert('اكتب عنوان الفيديو أولًا.');
       return;
     }
+
     if (!isYouTubeUrl(url)) {
       alert('أدخل رابط يوتيوب صحيحًا.');
       return;
     }
+
     if (videos.some(video => video.url === url)) {
       alert('هذا الرابط موجود بالفعل في مكتبتك.');
       return;
@@ -589,19 +912,23 @@
 
     videos.unshift({
       id: Date.now().toString(),
-      title, url, notes,
+      title,
+      url,
+      notes,
       createdAt: new Date().toISOString()
     });
 
     $('video-title').value = '';
     $('video-url').value = '';
     $('video-notes').value = '';
+
     hideAddForm();
     save();
   }
 
   function renderVideos() {
     const query = ($('videos-search')?.value || '').trim().toLowerCase();
+
     const filtered = videos.filter(video =>
       [video.title, video.url, video.notes].some(value =>
         String(value || '').toLowerCase().includes(query)
@@ -609,35 +936,103 @@
     );
 
     $('videos-list').innerHTML = filtered.length
-      ? filtered.map(video => `
-        <article class="idea-card">
-          <span class="tag">فيديو محفوظ</span>
-          <h3>${escapeHTML(video.title)}</h3>
-          <p>${escapeHTML(video.notes || 'لا توجد ملاحظات.')}</p>
-          <div class="card-actions">
-            <a class="small-btn" href="${escapeHTML(video.url)}" target="_blank" rel="noopener noreferrer">فتح على يوتيوب ↗</a>
-            <button class="small-btn danger" onclick="deleteVideo('${video.id}')">حذف</button>
-          </div>
-        </article>`).join('')
+      ? filtered.map(video => {
+          const safeId = escapeHTML(video.id);
+          const safeUrl = isYouTubeUrl(video.url)
+            ? escapeHTML(video.url)
+            : '#';
+
+          return `
+            <article class="idea-card">
+              <span class="tag">فيديو محفوظ</span>
+              <h3>${escapeHTML(video.title)}</h3>
+              <p>${escapeHTML(video.notes || 'لا توجد ملاحظات.')}</p>
+              <div class="card-actions">
+                <a class="small-btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer">فتح على يوتيوب ↗</a>
+                <button class="small-btn danger" onclick="deleteVideo('${safeId}')">حذف</button>
+              </div>
+            </article>`;
+        }).join('')
       : '<div class="empty">المكتبة فارغة. أضف أول رابط يوتيوب.</div>';
   }
 
   function deleteVideo(id) {
     if (!confirm('هل تريد حذف هذا الفيديو من المكتبة؟')) return;
-    videos = videos.filter(video => video.id !== id);
+    videos = videos.filter(video => String(video.id) !== String(id));
     save();
   }
 
   function renderAll() {
     $('ideas-count').textContent = ideas.length;
     $('videos-count').textContent = videos.length;
-    $('drafts-count').textContent = ideas.filter(idea => !idea.status || idea.status === 'مسودة').length;
+    $('drafts-count').textContent = ideas.filter(
+      idea => !idea.status || idea.status === 'مسودة'
+    ).length;
+
     renderIdeas();
     renderVideos();
     renderRecentIdeas();
   }
 
+  function updateAuthUI(user) {
+    currentUser = user || null;
+
+    $('signed-in-tools').hidden = !user;
+    $('auth-form-area').hidden = !!user;
+    $('signed-in-email').textContent = user ? user.email : '';
+
+    if (user) {
+      setAuthMessage('تم تسجيل الدخول. يتم تحميل بيانات حسابك الآن.', 'success');
+      loadUserData(user);
+    } else {
+      dataReady = false;
+      clearTimeout(cloudSaveTimer);
+
+      ideas = loadLocal('ytmf_ideas');
+      videos = loadLocal('ytmf_videos');
+
+      saveLocal();
+      renderAll();
+
+      setCloudState(firebaseReady
+        ? 'غير مسجل الدخول — البيانات محفوظة محليًا فقط.'
+        : 'تعذر الاتصال بخدمات Firebase. يمكنك استخدام النسخة المحلية.');
+    }
+  }
+
+  try {
+    if (!window.firebase) {
+      throw new Error('لم يتم تحميل مكتبة Firebase.');
+    }
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    auth = firebase.auth();
+    database = firebase.database();
+    firebaseReady = true;
+
+    setCloudState('Firebase جاهز. سجّل الدخول لمزامنة بياناتك.');
+
+    auth.onAuthStateChanged(updateAuthUI, error => {
+      setCloudState(firebaseErrorMessage(error), 'error');
+    });
+  } catch (error) {
+    console.error(error);
+
+    setCloudState(
+      'تعذر تهيئة Firebase. تحقق من اتصال الإنترنت وإعدادات التطبيق.',
+      'error'
+    );
+
+    setAuthMessage(
+      'التطبيق يعمل محليًا حاليًا، لكن تسجيل الدخول والمزامنة غير متاحين حتى إصلاح إعداد Firebase.',
+      'error'
+    );
+  }
+
   renderAll();
 </script>
 </body>
-  </html>
+</html> 

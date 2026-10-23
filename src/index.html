@@ -1,0 +1,643 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101322">
+  <title>YT Manager Free | استوديو يوتيوب</title>
+  <style>
+    :root {
+      --bg: #0b0e19;
+      --panel: #141827;
+      --panel2: #1a2032;
+      --border: #2a3147;
+      --text: #f4f6ff;
+      --muted: #9ba5bf;
+      --purple: #8b5cf6;
+      --cyan: #35d6d0;
+      --red: #fb7185;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Tahoma, sans-serif;
+      line-height: 1.7;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { display: flex; min-height: 100vh; }
+    aside {
+      width: 245px;
+      padding: 25px 17px;
+      background: #101423;
+      border-left: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 35px;
+    }
+    .logo {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      background: linear-gradient(135deg, #a78bfa, #6d28d9);
+      font-size: 23px;
+      box-shadow: 0 7px 24px #8b5cf633;
+    }
+    .brand h2 { font-size: 17px; margin: 0; }
+    .brand small { color: var(--muted); font-size: 11px; }
+    .nav-label {
+      color: #77819d;
+      font-size: 11px;
+      margin: 20px 10px 8px;
+    }
+    .nav {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 7px;
+      text-align: right;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      color: #bdc5da;
+      background: transparent;
+    }
+    .nav:hover, .nav.active {
+      color: white;
+      background: #8b5cf61c;
+      border-color: #8b5cf644;
+    }
+    .side-note {
+      margin-top: 35px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    main { flex: 1; min-width: 0; padding: 28px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 28px;
+    }
+    h1 { font-size: clamp(22px, 4vw, 30px); margin: 0 0 4px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 12px;
+      background: #35d6d01a;
+      border: 1px solid #35d6d044;
+      color: var(--cyan);
+      border-radius: 30px;
+      font-size: 12px;
+    }
+    .hero {
+      padding: 27px;
+      border-radius: 20px;
+      border: 1px solid #8b5cf644;
+      background:
+        radial-gradient(ellipse at 10% 10%, #8b5cf633, transparent 45%),
+        linear-gradient(120deg, #1c2040, #151a2c 65%);
+      margin-bottom: 24px;
+    }
+    .hero h2 { font-size: 25px; margin: 0 0 8px; }
+    .hero p { color: #c0c7df; margin: 0 0 20px; max-width: 620px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn {
+      border: 1px solid var(--border);
+      color: white;
+      background: var(--panel2);
+      border-radius: 10px;
+      padding: 10px 15px;
+      font-weight: bold;
+    }
+    .btn.primary {
+      background: var(--purple);
+      border-color: var(--purple);
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 15px;
+      margin-bottom: 27px;
+    }
+    .stat, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 19px;
+    }
+    .stat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .stat-icon {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      background: #8b5cf620;
+      border-radius: 10px;
+      font-size: 18px;
+    }
+    .number { font-size: 30px; font-weight: bold; margin-top: 12px; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 26px 0 14px;
+    }
+    .section-head h2 { font-size: 19px; margin: 0; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .idea-card {
+      padding: 19px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 15px;
+      min-width: 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 20px;
+      background: #8b5cf620;
+      color: #c4b5fd;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+    .idea-card h3 { font-size: 16px; margin: 0 0 8px; }
+    .idea-card p { color: #b5bfd6; font-size: 13px; }
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 15px;
+    }
+    .small-btn {
+      border: 1px solid var(--border);
+      background: #20263a;
+      color: #e7eaff;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .small-btn.danger { color: var(--red); }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0f1321;
+      color: white;
+      outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--purple); }
+    .toolbar input { flex: 1; min-width: 0; }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 35px 12px;
+      border: 1px dashed var(--border);
+      border-radius: 13px;
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+    .form-panel {
+      max-width: 600px;
+      margin-bottom: 20px;
+    }
+    .form-panel label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 13px;
+      color: #c6cee2;
+    }
+    footer {
+      margin-top: 40px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: #78829c;
+      font-size: 12px;
+    }
+    @media (max-width: 800px) {
+      .app { display: block; }
+      aside {
+        width: 100%;
+        padding: 13px;
+        border-left: 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .brand { margin: 0 0 12px; }
+      .nav-label, .side-note { display: none; }
+      nav { display: flex; gap: 6px; overflow-x: auto; }
+      .nav {
+        width: auto;
+        min-width: max-content;
+        margin: 0;
+        padding: 9px 12px;
+        font-size: 12px;
+      }
+      main { padding: 18px 13px; }
+      header { align-items: flex-start; }
+      .stats { gap: 9px; }
+      .stat { padding: 12px; }
+      .stat-top { display: block; font-size: 11px; }
+      .stat-icon { margin-bottom: 8px; }
+      .number { font-size: 24px; }
+      .cards { grid-template-columns: 1fr; }
+      .hero { padding: 20px; }
+      .hero h2 { font-size: 21px; }
+    }
+    @media (max-width: 390px) {
+      .stats { grid-template-columns: 1fr; }
+      .toolbar { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="logo">▶</div>
+      <div>
+        <h2>YT Manager Free</h2>
+        <small>استوديو إدارة المحتوى</small>
+      </div>
+    </div>
+    <div class="nav-label">القائمة الرئيسية</div>
+    <nav>
+      <button class="nav active" data-view="dashboard">◈ الرئيسية</button>
+      <button class="nav" data-view="ideas">✦ أفكار Shorts</button>
+      <button class="nav" data-view="library">▤ مكتبة الفيديوهات</button>
+    </nav>
+    <div class="side-note">
+      <strong>مساحة عملك الإبداعية</strong>
+      <p>نظّم أفكارك، واحفظ الروابط، وحوّل أفكارك إلى خطط محتوى.</p>
+      <span class="pill">● النسخة الأولية</span>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div>
+        <h1 id="page-title">لوحة التحكم</h1>
+        <div class="muted">كل أفكارك ومحتواك في مكان واحد.</div>
+      </div>
+      <span class="pill">✦ مجاني</span>
+    </header>
+
+    <section id="dashboard" class="view active">
+      <div class="hero">
+        <h2>خلّي فكرتك الفيديو الجاي! ✨</h2>
+        <p>ابدأ بفكرة جذابة، جهّز الخطاف، ونظّم مكتبة فيديوهاتك في مساحة عمل واحدة.</p>
+        <div class="actions">
+          <button class="btn primary" onclick="navigate('ideas'); generateIdea()">✦ أنشئ فكرة Shorts</button>
+          <button class="btn" onclick="navigate('library'); showAddForm()">＋ أضف فيديو</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-top"><span>الأفكار المحفوظة</span><span class="stat-icon">💡</span></div>
+          <div class="number" id="ideas-count">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><span>الفيديوهات بالمكتبة</span><span class="stat-icon">▶</span></div>
+          <div class="number" id="videos-count">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><span>مسودات الأفكار</span><span class="stat-icon">✎</span></div>
+          <div class="number" id="drafts-count">0</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2>أحدث الأفكار</h2>
+        <button class="small-btn" onclick="navigate('ideas')">عرض الكل ←</button>
+      </div>
+      <div id="recent-ideas" class="cards"></div>
+    </section>
+
+    <section id="ideas" class="view">
+      <div class="hero">
+        <h2>استوديو أفكار Shorts ✦</h2>
+        <p>ولّد مسودات أولية تتضمن عنوانًا وخطافًا مقترحًا. راجع المعلومات قبل النشر.</p>
+        <div class="actions">
+          <button class="btn primary" onclick="generateIdea()">＋ إنشاء فكرة جديدة</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input id="ideas-search" placeholder="ابحث في أفكارك..." oninput="renderIdeas()">
+      </div>
+      <div id="ideas-list" class="cards"></div>
+    </section>
+
+    <section id="library" class="view">
+      <div class="section-head">
+        <h2>مكتبة الفيديوهات</h2>
+        <button class="btn primary" onclick="showAddForm()">＋ إضافة رابط</button>
+      </div>
+      <div id="add-form" class="panel form-panel" hidden>
+        <h3>إضافة فيديو جديد</h3>
+        <label for="video-title">عنوان الفيديو</label>
+        <input id="video-title" placeholder="اكتب عنوانًا واضحًا">
+        <label for="video-url">رابط يوتيوب</label>
+        <input id="video-url" type="url" placeholder="https://www.youtube.com/watch?v=...">
+        <label for="video-notes">ملاحظات (اختياري)</label>
+        <textarea id="video-notes" rows="3" placeholder="اكتب ملاحظاتك هنا"></textarea>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn primary" onclick="addVideo()">حفظ الفيديو</button>
+          <button class="btn" onclick="hideAddForm()">إلغاء</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input id="videos-search" placeholder="ابحث بالعنوان أو الرابط..." oninput="renderVideos()">
+      </div>
+      <div id="videos-list" class="cards"></div>
+    </section>
+
+    <footer>
+      YT Manager Free · نسخة أولية للواجهة · بيانات هذه النسخة محفوظة في متصفحك فقط
+    </footer>
+  </main>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  const load = (key) => {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch {
+      return [];
+    }
+  };
+
+  let ideas = load('ytmf_ideas');
+  let videos = load('ytmf_videos');
+
+  const save = () => {
+    localStorage.setItem('ytmf_ideas', JSON.stringify(ideas));
+    localStorage.setItem('ytmf_videos', JSON.stringify(videos));
+    renderAll();
+  };
+
+  const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;'
+  })[char]);
+
+  function navigate(view) {
+    document.querySelectorAll('.view').forEach(el => {
+      el.classList.toggle('active', el.id === view);
+    });
+    document.querySelectorAll('.nav').forEach(el => {
+      el.classList.toggle('active', el.dataset.view === view);
+    });
+    const titles = {
+      dashboard: 'لوحة التحكم',
+      ideas: 'أفكار YouTube Shorts',
+      library: 'مكتبة الفيديوهات'
+    };
+    $('page-title').textContent = titles[view] || 'YT Manager Free';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.querySelectorAll('.nav').forEach(button => {
+    button.addEventListener('click', () => navigate(button.dataset.view));
+  });
+
+  const topics = [
+    {
+      topic: 'الذكاء الاصطناعي',
+      title: 'هل يستطيع الذكاء الاصطناعي تغيير حياتك؟',
+      hook: 'تخيّل إنك تقدر تنجز في دقائق مهمة كانت بتاخد منك ساعات!',
+      outline: 'ابدأ بمثال واقعي، اشرح الأداة وفائدتها، ثم اختم بتجربة عملية.'
+    },
+    {
+      topic: 'العلوم',
+      title: 'حقيقة علمية ستجعلك ترى العالم بشكل مختلف',
+      hook: 'هل تعلم أن الشيء الذي تراه كل يوم يخفي وراءه مفاجأة علمية؟',
+      outline: 'اعرض السؤال، اشرح التفسير العلمي، ثم قدّم مثالًا بسيطًا.'
+    },
+    {
+      topic: 'التاريخ',
+      title: 'قصة تاريخية أغرب مما تتوقع',
+      hook: 'حدثت هذه القصة بالفعل، لكن تفاصيلها تبدو كأنها من فيلم!',
+      outline: 'ابدأ بالحدث الغريب، اشرح خلفيته، ثم اعرض النتيجة والدروس.'
+    },
+    {
+      topic: 'معلومات عامة',
+      title: '3 معلومات ستفاجئك عن العالم',
+      hook: 'المعلومة الثالثة تحديدًا قد تكون جديدة عليك تمامًا!',
+      outline: 'اعرض ثلاث حقائق موثقة، واشرح كل واحدة بإيجاز.'
+    },
+    {
+      topic: 'التكنولوجيا',
+      title: 'خطأ تقني شائع قد يضيّع وقتك',
+      hook: 'لو بتستخدم هاتفك كل يوم، انتبه للنقطة دي!',
+      outline: 'اعرض المشكلة، وضّح سببها، وقدّم خطوات عملية للحل.'
+    }
+  ];
+
+  function generateIdea() {
+    const template = topics[Math.floor(Math.random() * topics.length)];
+    const idea = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+      topic: template.topic,
+      title: template.title,
+      hook: template.hook,
+      outline: template.outline,
+      status: 'مسودة',
+      createdAt: new Date().toISOString()
+    };
+    ideas.unshift(idea);
+    save();
+    navigate('ideas');
+  }
+
+  function ideaCard(idea) {
+    return `
+      <article class="idea-card">
+        <span class="tag">${escapeHTML(idea.topic)}</span>
+        <h3>${escapeHTML(idea.title)}</h3>
+        <p><strong>الخطاف:</strong> ${escapeHTML(idea.hook)}</p>
+        <p><strong>المخطط:</strong> ${escapeHTML(idea.outline)}</p>
+        <div class="muted">الحالة: ${escapeHTML(idea.status || 'مسودة')}</div>
+        <div class="card-actions">
+          <button class="small-btn" onclick="copyIdea('${idea.id}')">نسخ الفكرة</button>
+          <button class="small-btn danger" onclick="deleteIdea('${idea.id}')">حذف</button>
+        </div>
+      </article>`;
+  }
+
+  function renderIdeas() {
+    const query = ($('ideas-search')?.value || '').trim().toLowerCase();
+    const filtered = ideas.filter(idea =>
+      [idea.title, idea.topic, idea.hook].some(value =>
+        String(value || '').toLowerCase().includes(query)
+      )
+    );
+    $('ideas-list').innerHTML = filtered.length
+      ? filtered.map(ideaCard).join('')
+      : '<div class="empty">لا توجد أفكار هنا بعد. اضغط «إنشاء فكرة جديدة» للبدء.</div>';
+  }
+
+  function renderRecentIdeas() {
+    $('recent-ideas').innerHTML = ideas.length
+      ? ideas.slice(0, 2).map(ideaCard).join('')
+      : '<div class="empty" style="grid-column:1/-1">لسه ما حفظتش أفكار. ابدأ بإنشاء أول فكرة ليك.</div>';
+  }
+
+  function deleteIdea(id) {
+    if (!confirm('هل تريد حذف هذه الفكرة؟')) return;
+    ideas = ideas.filter(idea => idea.id !== id);
+    save();
+  }
+
+  function copyIdea(id) {
+    const idea = ideas.find(item => item.id === id);
+    if (!idea) return;
+    const text = `العنوان: ${idea.title}\nالموضوع: ${idea.topic}\nالخطاف: ${idea.hook}\nالمخطط: ${idea.outline}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => alert('تم نسخ الفكرة.'))
+        .catch(() => prompt('انسخ الفكرة من هنا:', text));
+    } else {
+      prompt('انسخ الفكرة من هنا:', text);
+    }
+  }
+
+  function showAddForm() {
+    $('add-form').hidden = false;
+    $('video-title').focus();
+  }
+
+  function hideAddForm() {
+    $('add-form').hidden = true;
+  }
+
+  function isYouTubeUrl(value) {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.toLowerCase().replace(/^www\./, '');
+      return (
+        (host === 'youtu.be' && url.pathname.length > 1) ||
+        (
+          ['youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host) &&
+          (
+            (url.pathname === '/watch' && url.searchParams.has('v')) ||
+            url.pathname.startsWith('/shorts/') ||
+            url.pathname.startsWith('/embed/')
+          )
+        )
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function addVideo() {
+    const title = $('video-title').value.trim();
+    const url = $('video-url').value.trim();
+    const notes = $('video-notes').value.trim();
+
+    if (!title) {
+      alert('اكتب عنوان الفيديو أولًا.');
+      return;
+    }
+    if (!isYouTubeUrl(url)) {
+      alert('أدخل رابط يوتيوب صحيحًا.');
+      return;
+    }
+    if (videos.some(video => video.url === url)) {
+      alert('هذا الرابط موجود بالفعل في مكتبتك.');
+      return;
+    }
+
+    videos.unshift({
+      id: Date.now().toString(),
+      title, url, notes,
+      createdAt: new Date().toISOString()
+    });
+
+    $('video-title').value = '';
+    $('video-url').value = '';
+    $('video-notes').value = '';
+    hideAddForm();
+    save();
+  }
+
+  function renderVideos() {
+    const query = ($('videos-search')?.value || '').trim().toLowerCase();
+    const filtered = videos.filter(video =>
+      [video.title, video.url, video.notes].some(value =>
+        String(value || '').toLowerCase().includes(query)
+      )
+    );
+
+    $('videos-list').innerHTML = filtered.length
+      ? filtered.map(video => `
+        <article class="idea-card">
+          <span class="tag">فيديو محفوظ</span>
+          <h3>${escapeHTML(video.title)}</h3>
+          <p>${escapeHTML(video.notes || 'لا توجد ملاحظات.')}</p>
+          <div class="card-actions">
+            <a class="small-btn" href="${escapeHTML(video.url)}" target="_blank" rel="noopener noreferrer">فتح على يوتيوب ↗</a>
+            <button class="small-btn danger" onclick="deleteVideo('${video.id}')">حذف</button>
+          </div>
+        </article>`).join('')
+      : '<div class="empty">المكتبة فارغة. أضف أول رابط يوتيوب.</div>';
+  }
+
+  function deleteVideo(id) {
+    if (!confirm('هل تريد حذف هذا الفيديو من المكتبة؟')) return;
+    videos = videos.filter(video => video.id !== id);
+    save();
+  }
+
+  function renderAll() {
+    $('ideas-count').textContent = ideas.length;
+    $('videos-count').textContent = videos.length;
+    $('drafts-count').textContent = ideas.filter(idea => !idea.status || idea.status === 'مسودة').length;
+    renderIdeas();
+    renderVideos();
+    renderRecentIdeas();
+  }
+
+  renderAll();
+</script>
+</body>
+</html>
